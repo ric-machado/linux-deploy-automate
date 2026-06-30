@@ -247,8 +247,12 @@ if [[ "$DRY_RUN" == true ]]; then
     log "[DRY-RUN] would update KIT_BASE_URL/PROFILE/GPG key in ${BOOTSTRAP}"
 else
     log "updating KIT_BASE_URL and PROFILE in ${BOOTSTRAP}"
-    sed -i -E "s#^KIT_BASE_URL=\"[^\"]*\".*#KIT_BASE_URL=\"${KIT_BASE_URL}\"   # EDIT: base URL where the kit is served#" "$BOOTSTRAP"
-    sed -i -E "s#^PROFILE=\"[^\"]*\".*#PROFILE=\"${PROFILE}\"                                           # EDIT: profile name (matches profiles/<name>/)#" "$BOOTSTRAP"
+    # NOTE: delimiter is a control char (not '#') because the replacement text
+    # itself contains literal '#' comment characters, which would otherwise be
+    # mistaken for the closing delimiter.
+    SEP=$'\x01'
+    sed -i -E "s${SEP}^KIT_BASE_URL=\"[^\"]*\".*${SEP}KIT_BASE_URL=\"${KIT_BASE_URL}\"   # EDIT: base URL where the kit is served${SEP}" "$BOOTSTRAP"
+    sed -i -E "s${SEP}^PROFILE=\"[^\"]*\".*${SEP}PROFILE=\"${PROFILE}\"                                           # EDIT: profile name (matches profiles/<name>/)${SEP}" "$BOOTSTRAP"
 
     log "splicing production GPG public key into ${BOOTSTRAP}"
     awk -v keyfile="$NEW_PUBKEY_FILE" '
@@ -293,15 +297,24 @@ else
     sed -i -E "s#^(    username: ).*#\1${ADMIN_USERNAME}#" "$PROFILE_USER_DATA"
     sed -i -E "s#^(    password: ).*#\1\"${PASSWORD_HASH}\"#" "$PROFILE_USER_DATA"
 
-    python3 - "$PROFILE_USER_DATA" "$BOOTSTRAP" <<'PYEOF' 2>/dev/null || log "WARN: skipped optional YAML/embed sanity check (python3/PyYAML not available)"
+    PYCHECK_OUTPUT="$(python3 - "$PROFILE_USER_DATA" "$BOOTSTRAP" <<'PYEOF' 2>&1
 import sys, yaml
 user_data_path, bootstrap_path = sys.argv[1], sys.argv[2]
 d = yaml.safe_load(open(user_data_path))
 embedded = d["autoinstall"]["user-data"]["write_files"][0]["content"]
 original = open(bootstrap_path).read()
 assert embedded == original, "embedded bootstrap content does not match scripts/00-bootstrap.sh"
-print("user-data: YAML parses OK and embedded bootstrap matches scripts/00-bootstrap.sh", file=sys.stderr)
+print("user-data: YAML parses OK and embedded bootstrap matches scripts/00-bootstrap.sh")
 PYEOF
+)"
+    PYCHECK_STATUS=$?
+    if [[ $PYCHECK_STATUS -eq 0 ]]; then
+        log "$PYCHECK_OUTPUT"
+    elif ! command -v python3 >/dev/null 2>&1 || ! python3 -c 'import yaml' >/dev/null 2>&1; then
+        log "WARN: skipped optional YAML/embed sanity check (python3/PyYAML not available)"
+    else
+        die "YAML/embed sanity check failed: ${PYCHECK_OUTPUT}"
+    fi
 fi
 
 # --- 5. rebuild + sign manifest.json -----------------------------------------
