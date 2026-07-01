@@ -18,8 +18,13 @@ autoinstall:
 
   ssh:
     install-server: true
+    # allow-pw: set to false by tools/setup-production.sh when --ssh-pubkey
+    # is supplied; keep true when deploying without an SSH key so the admin
+    # can log in with the generated password until a key is added manually.
     allow-pw: true
-    # v1 is password-only login (see docs/ROADMAP.md for SSH-key support).
+    # Populated by tools/setup-production.sh --ssh-pubkey "ssh-ed25519 AAAA..."
+    # Leave empty for password-only login; scripts/35-security.sh will keep
+    # PasswordAuthentication yes in that case (avoids lockout).
     authorized-keys: []
 
   storage:

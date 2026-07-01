@@ -16,11 +16,18 @@ first version shippable. Listed here so they aren't silently dropped.
 ## Security hardening
 - Extra non-root users beyond the single `identity:` admin (e.g. a dedicated
   `dockeradmin`/`devops` account)
-- SSH hardening (disable root login explicitly, `MaxAuthTries`,
-  `AllowUsers`, key-only auth)
-- SSH key-based login (v1 is password-only; `authorized-keys: []`)
-- UFW / firewall rules
-- fail2ban
+
+**Delivered in v1.1** (no longer deferred):
+- SSH hardening: `PermitRootLogin no`, `MaxAuthTries 3`, `LoginGraceTime 30`,
+  `AllowUsers <admin>`, `X11Forwarding no` — via drop-in
+  `/etc/ssh/sshd_config.d/99-provisioning-hardening.conf`
+- SSH key-based login: `tools/setup-production.sh --ssh-pubkey` injects an
+  SSH public key into `user-data`'s `authorized-keys` and sets `allow-pw:
+  false`; `35-security.sh` sets `PasswordAuthentication no` on the target
+  only when a key is actually present (avoids lockout if no key was set)
+- UFW firewall: default deny incoming, allow outgoing, port 22 explicitly
+  allowed; see the Docker+UFW note in `scripts/35-security.sh`
+- fail2ban: sshd jail (3 attempts / 10 min / 1 h ban, systemd backend)
 
 ## Observability
 - Netdata / Prometheus node exporter

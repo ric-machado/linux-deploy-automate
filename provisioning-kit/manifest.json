@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
-  "build": "1.0.0+20260630104053",
-  "created": "2026-06-30T10:40:53Z",
-  "git_commit": "81078d6cc7a0ca88d10e49e54d3f33ddba3f94fb",
+  "version": "1.1.0",
+  "build": "1.1.0+20260701150300",
+  "created": "2026-07-01T15:03:00Z",
+  "git_commit": "9621a28fa9befc56d1ad2b584e35653ff838f376",
   "files": {
     "scripts/lib/common.sh": "sha256:81c8838f15fba855fc6a06c34e3baa7ec0787fe3eacb295776441ba1635a56ff",
     "scripts/05-base-packages.sh": "sha256:e0a7fcd540698db02c051b8bb6165780dd5d9e16826ced1b10ad8b4a9084491c",
@@ -11,7 +11,8 @@
     "scripts/20-python.sh": "sha256:71d9e148b5e1f3eb03d99b98261b8477e6be1737e3ceff1f230389f4cdeab82b",
     "scripts/25-github-cli.sh": "sha256:6895742273d4fe2a020e64038525e1fab62503eee6d9065af11fea989292f5d5",
     "scripts/30-claude-code.sh": "sha256:472b254eaccfbafd34185f43b2164a6b141ea42dbe1e231deffa139669a081ad",
+    "scripts/35-security.sh": "sha256:8aab8dc4113f957d9a5379b2680c777b1afb792209155b708126da5baac071c6",
     "scripts/90-cleanup.sh": "sha256:95648273d31b1fe12424e0eb4266e38b8ad196c966bde42211d1d47f5c42b2c6",
-    "profiles/dev/pipeline.conf": "sha256:b27b606f33316ae680236546808bfb04c43aa96a277fa5d39ccd256869d72ec6"
+    "profiles/dev/pipeline.conf": "sha256:1f038874971afb377a895eba3342d79cf46a6bd6e25948739c70f3447d725da7"
   }
 }

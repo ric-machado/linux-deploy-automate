@@ -48,6 +48,7 @@ to skip the prompt (e.g. for unattended re-runs).
 | `--gpg-email EMAIL` | `provisioning-kit@<hostname>` | GPG key email field |
 | `--rotate-key` | off | Force-generate a brand new GPG key even if `--gpg-home` already has one (default: reuse) |
 | `--protect-key-with-passphrase` | off | Passphrase-protect the new private key (passphrase generated and saved in `--secrets-dir`); default is no passphrase, since the kit's release process is meant to run unattended |
+| `--ssh-pubkey "KEY"` | none | Admin SSH public key to embed in `user-data` (e.g. `"$(cat ~/.ssh/id_ed25519.pub)"`). When set, `authorized-keys` is populated and `allow-pw` is set to `false`; `35-security.sh` will then disable password auth on the target. When omitted, password auth is kept (safe default when no key is available) |
 | `--dry-run` | off | Print every step, change nothing |
 | `--force` | off | Skip the confirmation prompt |
 | `-h`, `--help` | | Show usage |
@@ -114,8 +115,17 @@ git --version
 ```
 
 The admin user should already be in the `docker` group without a fresh
-login. Full manual-verification checklist (including how to deliberately
-test the integrity chain by tampering with a deployed file) in
+login. Also verify the security hardening applied by `35-security.sh`:
+
+```sh
+sudo ufw status verbose          # should show: Status: active, 22/tcp ALLOW IN
+sudo fail2ban-client status sshd # should show the sshd jail as active
+sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|maxauthtries|allowusers'
+cat /etc/ssh/sshd_config.d/99-provisioning-hardening.conf
+```
+
+Full manual-verification checklist (including how to deliberately test the
+integrity chain by tampering with a deployed file) in
 `provisioning-kit/docs/VERIFICATION.md`.
 
 ## Updating an already-deployed kit

@@ -1,5 +1,50 @@
 # Release notes
 
+## v1.1.0 — Security hardening sprint
+
+SSH hardening, UFW firewall, and fail2ban brute-force protection for the
+`dev` profile. SSH key injection into `user-data` via `setup-production.sh
+--ssh-pubkey`. No breaking changes to v1.0 user-data format or GPG key
+material — re-running `setup-production.sh` on an existing deployment
+is the upgrade path.
+
+### New in v1.1
+
+**`scripts/35-security.sh`** — new first-boot pipeline stage:
+- **UFW**: `default deny incoming / allow outgoing`, SSH (port 22) explicitly
+  whitelisted. See the Docker+UFW interaction note inside the script —
+  Docker's published ports bypass UFW by design (iptables-managed).
+- **fail2ban**: sshd jail blocking IPs for 1 hour after 3 failed SSH
+  attempts in any 10-minute window (systemd/journald backend, Ubuntu 24.04
+  default).
+- **SSH hardening** via drop-in `/etc/ssh/sshd_config.d/99-provisioning-hardening.conf`:
+  `PermitRootLogin no`, `MaxAuthTries 3`, `LoginGraceTime 30`, `AllowUsers
+  <admin>`, `X11Forwarding no`. `PasswordAuthentication` is set to `no` only
+  when the admin already has a populated `authorized_keys` — avoids lockout
+  when no SSH key was provided.
+
+**`configs/`** — no longer a placeholder: `configs/sshd_config.d/` and
+`configs/fail2ban/jail.d/` contain reference copies of the configs the
+pipeline deploys.
+
+**`tools/setup-production.sh --ssh-pubkey "KEY"`** — injects an SSH public
+key into `profiles/<profile>/user-data`'s `authorized-keys` and sets
+`allow-pw: false`, so both autoinstall and the hardening stage agree on
+disabling password auth.
+
+### Upgrade path from v1.0
+
+1. Pull the latest changes.
+2. Re-run `setup-production.sh` with the same flags as before (add
+   `--ssh-pubkey "$(cat ~/.ssh/id_ed25519.pub)"` if you now want key-only
+   auth). The existing GPG key is reused; `35-security.sh` is automatically
+   included in the rebuilt manifest.
+3. Boot a new target machine, or re-provision an existing one by deleting the
+   `/opt/provisioning/state/` sentinels and re-running
+   `sudo /opt/provisioning/scripts/00-bootstrap.sh`.
+
+---
+
 ## v1.0.0 — Provisioning Kit, `dev` profile
 
 First shippable version. Zero-touch Ubuntu Server 24.04 LTS provisioning via

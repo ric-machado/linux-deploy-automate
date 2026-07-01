@@ -36,6 +36,7 @@ GPG_NAME="Provisioning Kit (PRODUCTION)"
 GPG_EMAIL=""
 ROTATE_KEY=false
 PROTECT_KEY_WITH_PASSPHRASE=false
+SSH_PUBKEY=""
 DRY_RUN=false
 FORCE=false
 
@@ -64,6 +65,14 @@ Usage: $(basename "$0") [options]
                               (passphrase is generated and stored alongside it
                               in --secrets-dir; default: no passphrase, see
                               the warning printed at the end of this script)
+  --ssh-pubkey "KEY"          Admin SSH public key to embed in user-data
+                              (e.g. the contents of ~/.ssh/id_ed25519.pub).
+                              When set: written into authorized-keys in the
+                              profile's user-data and allow-pw is set to false
+                              so password auth is off from the first boot.
+                              When omitted: authorized-keys stays empty and
+                              allow-pw stays true; scripts/35-security.sh will
+                              keep PasswordAuthentication yes on the target.
   --dry-run                  Print what would happen, change nothing
   --force                    Skip confirmation prompts
   -h, --help                  Show this help
@@ -84,6 +93,7 @@ while [[ $# -gt 0 ]]; do
         --gpg-email) GPG_EMAIL="$2"; shift 2 ;;
         --rotate-key) ROTATE_KEY=true; shift ;;
         --protect-key-with-passphrase) PROTECT_KEY_WITH_PASSPHRASE=true; shift ;;
+        --ssh-pubkey) SSH_PUBKEY="$2"; shift 2 ;;
         --dry-run) DRY_RUN=true; shift ;;
         --force) FORCE=true; shift ;;
         -h|--help) usage; exit 0 ;;
@@ -297,6 +307,15 @@ else
     sed -i -E "s#^(    username: ).*#\1${ADMIN_USERNAME}#" "$PROFILE_USER_DATA"
     sed -i -E "s#^(    password: ).*#\1\"${PASSWORD_HASH}\"#" "$PROFILE_USER_DATA"
 
+    if [[ -n "$SSH_PUBKEY" ]]; then
+        log "injecting SSH public key into authorized-keys in profiles/${PROFILE}/user-data"
+        # Use | as delimiter — SSH public keys contain only base64chars+spaces+@ and no |
+        sed -i "s|^    authorized-keys: \[\]$|    authorized-keys: ['${SSH_PUBKEY}']|" "$PROFILE_USER_DATA"
+        sed -i "s|^    allow-pw: true$|    allow-pw: false|" "$PROFILE_USER_DATA"
+        grep -q "authorized-keys: \['" "$PROFILE_USER_DATA" \
+            || die "SSH key injection failed — 'authorized-keys: []' line not found in ${PROFILE_USER_DATA}"
+    fi
+
     PYCHECK_OUTPUT="$(python3 - "$PROFILE_USER_DATA" "$BOOTSTRAP" <<'PYEOF' 2>&1
 import sys, yaml
 user_data_path, bootstrap_path = sys.argv[1], sys.argv[2]
@@ -362,6 +381,7 @@ cat <<SUMMARY
   GPG fingerprint:       ${FPR}
   GPG keyring home:      ${GPG_HOME}  (private key — back this up, keep it OFF the web root)
   Admin password file:   ${PASSWORD_FILE}  (plaintext — retrieve and delete)
+$( [[ -n "$SSH_PUBKEY" ]] && echo "  SSH public key:        injected into authorized-keys (allow-pw set to false)" || echo "  SSH public key:        none — password auth kept; run with --ssh-pubkey to harden" )
 $( [[ "$PROTECT_KEY_WITH_PASSPHRASE" == true ]] && echo "  GPG key passphrase:    ${SECRETS_DIR}/gpg-key-passphrase.txt  (needed for future re-signing)" )
 
   scripts/00-bootstrap.sh and profiles/${PROFILE}/user-data in ${KIT_SRC}
